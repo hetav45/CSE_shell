@@ -1,12 +1,11 @@
-#include<stdio.h>   // printf, scanf
-#include<unistd.h>  // getlogin, getcwd
+#include<stdio.h>   // printf, perror
+#include<unistd.h>  // getcwd
 #include<stdlib.h>  // malloc
-#include<string.h>  // strcat
-#include "shell.h"
+#include<string.h>  // strcat, strcpy
+#include "shell.h"  // display_prompt
 
 
 char * HOME_DIR;
-
 
 void set_home_dir() {
 
@@ -28,5 +27,7 @@ int main() {  // to do : check for possible memory leaks with valgrind
     set_home_dir();
 
     display_prompt();
+
+    interprete_commands();
 
 }

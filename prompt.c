@@ -1,5 +1,5 @@
-#include "shell.h"
-#include<stdio.h>   // printf, scanf
+#include "shell.h"  // HOME_DIR
+#include<stdio.h>   // printf, perror
 #include<unistd.h>  // getlogin, getcwd
 #include<stdlib.h>  // malloc
 #include<string.h>  // strcat
@@ -12,8 +12,11 @@ int check_rel_path(char * ab_path) {  // checks if relative path is possible, i.
     // check if HOME_DIR is contained in ab_path
     for(i=0; i<len_h && i<len_a; i++) {
         if(HOME_DIR[i] != ab_path[i]) 
-            flag = 1;
-    }    
+            flag = -1;
+    }
+
+    // if home_dir == pwd
+    if(flag == 0 && len_h == len_a) flag = 1;    
 
     return flag;  
 }
@@ -58,16 +61,24 @@ void display_prompt() {  // default values will be displayed upon error
 
     rel_pwd[0] = ':'; 
 
-    if(check_rel_path(pwd)) {
+    int temp = check_rel_path(pwd);
+    if(temp == -1) {  // if curr_dir not in home_dir; show ab_path
         strcat(&rel_pwd[1], pwd);
+        printf("%s\n", rel_pwd);
     } 
-    else {
-        rel_pwd[2] = '~';
+    else if(temp == 0) {  // if curr_dir in home_dir but not equal to home_dir;  join with telda
+        rel_pwd[1] = '~';
         strcat(&rel_pwd[2], &pwd[strlen(HOME_DIR)]);
+        printf("%s\n", rel_pwd);
+    }
+    else if(temp == 1) {  // if curr_dir equlal to home_dir
+        rel_pwd[1] = '~';
+        rel_pwd[2] = '\0';
     }
 
     // print and free allocated memory
-    printf("%s\n", strcat(strcat(u_name, h_name), rel_pwd));
+    printf("%s ", strcat(strcat(u_name, h_name), rel_pwd));
+    fflush(stdout);
 
     free(u_name);
     free(h_name);

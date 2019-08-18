@@ -1,7 +1,19 @@
-#include<unistd.h>
+#include<unistd.h>  // getcwd
+#include<stdio.h>  // printf
+#include<stdlib.h>  // malloc  
+#include<stdio.h>  // perror
 
-char *get_pwd() {
-    char * ret = calloc(1000, sizeof(char));
-    if(getcwd(ret, 1000) == NULL) { perror(""); }
-    return ret;
+void exec_pwd() {
+    
+    char * pwd = malloc(1024 * sizeof(char));
+    
+    if(getcwd(pwd, 1024) == NULL) { 
+        perror("");
+        free(pwd);
+        return;
+    }
+    
+    printf("%s\n", pwd);
+    
+    free(pwd);
 }
