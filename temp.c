@@ -1,8 +1,8 @@
 #include<stdio.h>
 #include<unistd.h>
+#include<string.h>
 
 int main() {
-    char *str;
-    str = getlogin();
-    printf("%s\n", str);
+    if(chdir("..") < 0 )
+        perror("");
 }

@@ -7,4 +7,4 @@ $(objects) : shell.h
 
 .PHONY : clean
 clean : 
-	rm shell $(objects)
+	rm shell $(objects)	
