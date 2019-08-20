@@ -13,7 +13,7 @@ void set_home_dir() {
     char * pwd = (char *) malloc(1024 * sizeof(char));
     if(pwd == NULL) { perror(""); exit(1); }
 
-    if(getcwd(&pwd[1], 1024) == NULL) {   
+    if(getcwd(&pwd[0], 1024) == NULL) {   
         perror(""); 
 
         pwd = "/\0";  // default

@@ -14,10 +14,11 @@ int check_rel_path(char * ab_path) {  // checks if relative path is possible, i.
         if(HOME_DIR[i] != ab_path[i]) 
             flag = -1;
     }
+    if(len_h > len_a) flag = -1;
 
     // if home_dir == pwd
     if(flag == 0 && len_h == len_a) flag = 1;    
-
+    
     return flag;  
 }
 
@@ -36,48 +37,42 @@ void display_prompt() {  // default values will be displayed upon error
     // get host name
     char * h_name = (char *) malloc(128 * sizeof(char)); 
     if(h_name == NULL) { perror(""); exit(1); }
-    
-    h_name[0] = '@';
 
-    if(gethostname(&h_name[1], 127) < 0) {  // 1 byte reserved for '@'
+    if(gethostname(h_name, 128) < 0) {  
         perror(""); 
         
-        h_name = "@host_name\0"; // default    
+        h_name = "host_name\0"; // default    
     }
 
     // get pwd
     char * pwd = (char *) malloc(1024 * sizeof(char));
     if(pwd == NULL) { perror(""); exit(1); }
 
-    if(getcwd(&pwd[1], 1023) == NULL) {  // 1 byte reserved for ':' 
+    if(getcwd(pwd, 1024) == NULL) {   
         perror(""); 
     
-        pwd = "~\0"; // default   
+        pwd = "\0"; // default   
     }
 
     // get relative path of pwd
     char * rel_pwd = (char *) malloc(1024 * sizeof(char));
     if(rel_pwd == NULL) { perror(""); exit(1); }
 
-    rel_pwd[0] = ':'; 
-
     int temp = check_rel_path(pwd);
     if(temp == -1) {  // if curr_dir not in home_dir; show ab_path
-        strcat(&rel_pwd[1], pwd);
-        printf("%s\n", rel_pwd);
+        rel_pwd = pwd;
     } 
     else if(temp == 0) {  // if curr_dir in home_dir but not equal to home_dir;  join with telda
-        rel_pwd[1] = '~';
-        strcat(&rel_pwd[2], &pwd[strlen(HOME_DIR)]);
-        printf("%s\n", rel_pwd);
+        rel_pwd[0] = '~';
+        strcpy(&rel_pwd[1], &pwd[strlen(HOME_DIR)]);
     }
     else if(temp == 1) {  // if curr_dir equlal to home_dir
-        rel_pwd[1] = '~';
-        rel_pwd[2] = '\0';
+        rel_pwd[0] = '~';
+        rel_pwd[1] = '\0';
     }
 
     // print and free allocated memory
-    printf("%s ", strcat(strcat(u_name, h_name), rel_pwd));
+    printf("<%s@%s:%s> ", u_name, h_name, rel_pwd);
     fflush(stdout);
 
     free(u_name);
