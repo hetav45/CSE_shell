@@ -1,6 +1,7 @@
 #include "shell.h"  // HOME_DIR
 #include<unistd.h>  // chdir
 #include<stdio.h>  // perror
+#include<string.h>  // strlen
 
 
 void exec_cd(char * dir_path) {
@@ -16,6 +17,14 @@ void exec_cd(char * dir_path) {
         return;
     }
 
+    // remove quotes : why do they not work with chdir ? 
+    if(dir_path[0] == '"' || dir_path[0] == '\'') {
+        if(strlen(dir_path) > 0) {
+            dir_path[strlen(dir_path) - 1] = '\0';  
+            dir_path = &dir_path[1];
+        }
+    }
+
     // telda expansion
     if(dir_path[0] == '~') {
         
@@ -29,7 +38,7 @@ void exec_cd(char * dir_path) {
         dir_path[0] = '.';
     }
 
-    if(chdir(dir_path) ) {
+    if(chdir(dir_path) < 0) {
         perror("");
         return;
     }
