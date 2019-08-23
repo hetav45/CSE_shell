@@ -1,7 +1,7 @@
-objects = shell.o interpreter.o prompt.o pwd.o cd.o echo.o ls.o pinfo.o
+objects = shell.o interpreter.o prompt.o pwd.o cd.o echo.o ls.o pinfo.o history.o
 
 shell : $(objects)
-	gcc -Wall -o shell $(objects) 
+	gcc -o shell $(objects) 
 
 $(objects) : shell.h
 

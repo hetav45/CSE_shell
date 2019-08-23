@@ -17,6 +17,8 @@ void interprete_commands() {  // to do : check for memory loss with strcok
     } 
     char * str_arg, * str_com, * temp1, * temp2, * temp3; 
 
+    retrieve_history();
+
     while(1) {
 
         // do not use scanf !!
@@ -30,6 +32,8 @@ void interprete_commands() {  // to do : check for memory loss with strcok
             free(str_in);
             continue;
         }
+
+        insert_history(str_in);
 
         // for commands sperated by ';'
         temp1 = str_in;
@@ -63,6 +67,12 @@ void interprete_commands() {  // to do : check for memory loss with strcok
                     exec_ls(str_arg);
                 }
 
+                else if(strcmp("history", str_arg) == 0) {
+                    // get the remaining string before ';'
+                    str_arg = strtok_r(temp2, "\0", &temp2);
+                    exec_history(str_arg);
+                }
+
                 else if(strcmp("pinfo", str_arg) == 0) {
                     // get the remaining string before ';'
                     str_arg = strtok_r(temp2, "\0", &temp2);
@@ -82,19 +92,29 @@ void interprete_commands() {  // to do : check for memory loss with strcok
 
                 else if(strcmp("exit", str_arg) == 0) {
                     free(str_in);
+                    save_history();
                     return;
                 }
 
                 else {
+
                     int pid = fork();
 
                     // exec overwrites the current process, so have to create a child process
                     if(pid == 0) {                
 
                         // prepare argv
-                        char **argv = (char **) malloc(32 * sizeof(char *));
+                        char **argv = (char **) malloc(32 * sizeof(char *)); 
+
                         if(argv == NULL) {
                             perror("");
+                            exit(1);
+                        }
+
+                        argv[0] = (char *) malloc(256 * sizeof(char));
+                        if(argv[0] == NULL) {
+                            perror("");
+                               
                             exit(1);
                         }
 
@@ -103,15 +123,17 @@ void interprete_commands() {  // to do : check for memory loss with strcok
                         int j;  // keeps track of number of blocks alloced
                         for(j = 1; (str_arg = strtok_r(temp2, " \t", &temp2)); j++) {
                             argv[j] = (char *) malloc(256 * sizeof(char));
-                            if(argv == NULL) {
+                            if(argv[j] == NULL) {
                                 perror("");
+                                
                                 exit(1);
                             }   
                             strcpy(argv[j], str_arg);
                         }
                         argv[j] = NULL;
-
+                        
                         if(execvp(argv[0], argv) < 0) {
+                   
                             if(errno == 2)  // for no such file or dir
                                 printf("Command not found : %s\n", argv[0]);
                             else 
