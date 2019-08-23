@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 
 void exec_pinfo(char * pid) {
@@ -16,6 +17,13 @@ void exec_pinfo(char * pid) {
 
     strcpy(path, "/proc/");
     strcat(path, pid);
+
+    /*
+    if(kill(atoi(pid), 0) < 0) 
+    {
+        printf("No process with pid %s exists\n", pid);
+        return;
+    }*/
 
     // pid
     printf("pid -- %s\n", pid);

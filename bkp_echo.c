@@ -1,6 +1,5 @@
 #include <stdio.h>  // printf
 #include <string.h> // strlen
-#include <stdlib.h>
 
 void exec_echo(char **arg)
 { // to do : handle the case when commas are not closed

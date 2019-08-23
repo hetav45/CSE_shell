@@ -1,33 +1,41 @@
-#include<stdio.h> // scanf, printf
-#include<string.h>  // strcmp, strlen
-#include<stdlib.h>  // malloc, fflush
-#include "shell.h"  // exec*, display_prompt
-#include<unistd.h>  // execvp
-#include<sys/wait.h>  // wait
-#include<errno.h>
+#include <stdio.h>    // scanf, printf
+#include <string.h>   // strcmp, strlen
+#include <stdlib.h>   // malloc, fflush
+#include "shell.h"    // exec*, display_prompt
+#include <unistd.h>   // execvp
+#include <sys/wait.h> // wait
+#include <errno.h>
 
+int flag_bg = 0;
 
-void interprete_commands() {  // to do : check for memory loss with strcok
+void execute_commands(char **arg);
+
+void interprete_commands()
+{ // to do : check for memory loss with strcok
 
     long unsigned int in_size = 1024;
-    char * str_in;
-    if((str_in = (char *) malloc(in_size * sizeof(char))) < 0) {
+    int pid = -1;
+    char *str_in;
+    if ((str_in = (char *)malloc(in_size * sizeof(char))) < 0)
+    {
         perror("");
         return;
-    } 
-    char * str_arg, * str_com, * temp1, * temp2, * temp3; 
+    }
+    char *str_arg, *str_com, *temp1, *temp2, *temp3;
 
     retrieve_history();
 
-    while(1) {
+    while (1)
+    {
 
         // do not use scanf !!
         getline(&str_in, &in_size, stdin);
-        if(strlen(str_in) > 0)
-            str_in[strlen(str_in) - 1] = '\0';  // remove trailing \n
+        if (strlen(str_in) > 0)
+            str_in[strlen(str_in) - 1] = '\0'; // remove trailing \n
 
         // in case only enter is pressed
-        if(str_in[0] == '\0') {
+        if (str_in[0] == '\0')
+        {
             display_prompt();
             free(str_in);
             continue;
@@ -37,129 +45,131 @@ void interprete_commands() {  // to do : check for memory loss with strcok
 
         // for commands sperated by ';'
         temp1 = str_in;
-        while((str_com = strtok_r(temp1, ";", &temp1))) {
-            
-            temp2 = str_com;
-            // to trim whitespaces
-            while((str_arg = strtok_r(temp2, " \t", &temp2))) {
-                
-                if(strcmp("pwd", str_arg) == 0) {
-                    exec_pwd();
-                    // removing junk
-                    str_arg = strtok_r(temp2, "\0", &temp2);
-                }
+        while ((str_com = strtok_r(temp1, ";", &temp1)))
+        {
 
-                else if(strcmp("echo", str_arg) == 0) {
-                    // get the remaining string before ';'
-                    str_arg = strtok_r(temp2, "\0", &temp2);
-                    exec_echo(str_arg);
-                }
+            flag_bg = 0;
 
-                else if(strcmp("cd", str_arg) == 0) {
-                    // get the remaining string before ';'
-                    str_arg = strtok_r(temp2, "\0", &temp2);
-                    exec_cd(str_arg);
-                }
-
-                else if(strcmp("ls", str_arg) == 0) {
-                    // get the remaining string before ';'
-                    str_arg = strtok_r(temp2, "\0", &temp2);
-                    exec_ls(str_arg);
-                }
-
-                else if(strcmp("history", str_arg) == 0) {
-                    // get the remaining string before ';'
-                    str_arg = strtok_r(temp2, "\0", &temp2);
-                    exec_history(str_arg);
-                }
-
-                else if(strcmp("pinfo", str_arg) == 0) {
-                    // get the remaining string before ';'
-                    str_arg = strtok_r(temp2, "\0", &temp2);
-                    if(str_arg == NULL) {
-                        if( (temp3 = (char *) malloc(64 * sizeof(char))) < 0) {
-                            perror("");
-                            free(str_in);
-                            return;
-                        }
-                        snprintf(temp3, 63, "%d", getpid());
-                        exec_pinfo(temp3);
-                        free(temp3);    
-                    }
-                    else 
-                        exec_pinfo(str_arg);
-                }
-
-                else if(strcmp("exit", str_arg) == 0) {
-                    free(str_in);
-                    save_history();
-                    return;
-                }
-
-                else {
-
-                    int pid = fork();
-
-                    // exec overwrites the current process, so have to create a child process
-                    if(pid == 0) {                
-
-                        // prepare argv
-                        char **argv = (char **) malloc(32 * sizeof(char *)); 
-
-                        if(argv == NULL) {
-                            perror("");
-                            exit(1);
-                        }
-
-                        argv[0] = (char *) malloc(256 * sizeof(char));
-                        if(argv[0] == NULL) {
-                            perror("");
-                               
-                            exit(1);
-                        }
-
-                        strcpy(argv[0], str_arg);
-
-                        int j;  // keeps track of number of blocks alloced
-                        for(j = 1; (str_arg = strtok_r(temp2, " \t", &temp2)); j++) {
-                            argv[j] = (char *) malloc(256 * sizeof(char));
-                            if(argv[j] == NULL) {
-                                perror("");
-                                
-                                exit(1);
-                            }   
-                            strcpy(argv[j], str_arg);
-                        }
-                        argv[j] = NULL;
-                        
-                        if(execvp(argv[0], argv) < 0) {
-                   
-                            if(errno == 2)  // for no such file or dir
-                                printf("Command not found : %s\n", argv[0]);
-                            else 
-                                perror("");
-                            
-                            free(str_in);
-
-                            for(int i = 0; i < j; i++)  // j is the number of blocks alloced
-                                free(argv[i]);
-                            free(argv);
-
-                            exit(1);  // bc exec will return if failed
-                        }
-                    }
-                    else {
-                        // the remaining string is already used up in the child
-                        strtok_r(temp2, "\0", &temp2);
-                        
-                        wait(NULL);
-                    }
-                }
+            // prepare argv
+            char **argv = (char **)malloc(32 * sizeof(char *));
+            if (argv == NULL)
+            {
+                perror("");
+                free(str_in);
+                exit(1);
             }
+
+            temp2 = str_com;
+
+            int j; // keeps track of number of blocks alloced
+            for (j = 0; (str_arg = strtok_r(temp2, " \t", &temp2)); j++)
+            {
+                argv[j] = (char *)malloc(256 * sizeof(char));
+                if (argv[j] == NULL)
+                {
+                    perror("");
+                    free(str_in);
+                    exit(1);
+                }
+                if (strcmp(str_arg, "&") == 0)
+                {
+                    flag_bg = 1;
+                    pid = fork();
+                    break;
+                }
+                strcpy(argv[j], str_arg);
+            }
+            argv[j] = NULL; // null terminated 2d arr
+
+            if (flag_bg && pid == 0 || !flag_bg)
+                execute_commands(argv);
+
+            for (int i = 0; i < j; i++) // j is the number of blocks alloced
+                free(argv[i]);
+            free(argv);
+
+            if (flag_bg && pid == 0)
+                exit(0);
         }
 
-        display_prompt();     
+        display_prompt();
     }
 
-    free(str_in);   
+    free(str_in);
+}
+
+void execute_commands(char **arg)
+{
+
+    if (strcmp("pwd", arg[0]) == 0)
+    {
+        exec_pwd();
+    }
+
+    else if (strcmp("echo", arg[0]) == 0)
+    {
+        exec_echo(arg);
+    }
+
+    else if (strcmp("cd", arg[0]) == 0)
+    {
+        exec_cd(arg[1]);
+    }
+
+    else if (strcmp("ls", arg[0]) == 0)
+    {
+        exec_ls(arg);
+    }
+
+    else if (strcmp("history", arg[0]) == 0)
+    {
+        exec_history(arg[1]);
+    }
+
+    else if (strcmp("pinfo", arg[0]) == 0)
+    {
+        char *temp;
+        if (arg[1] == NULL)
+        {
+            if ((temp = (char *)malloc(64 * sizeof(char))) < 0)
+            {
+                perror("");
+                return;
+            }
+            snprintf(temp, 63, "%d", getpid());
+            exec_pinfo(temp);
+            free(temp);
+        }
+        else
+            exec_pinfo(arg[1]);
+    }
+
+    else if (strcmp("exit", arg[0]) == 0)
+    {
+        save_history();
+        exit(0);
+    }
+
+    else
+    {
+        int pid = fork();
+
+        // exec overwrites the current process, so have to create a child process
+        if (pid == 0)
+        {
+            if (execvp(arg[0], arg) < 0)
+            {
+                if (errno == 2) // for no such file or dir
+                    printf("Command not found : %s\n", arg[0]);
+                else
+                    perror("");
+
+                exit(1); // bc exec will return if failed
+            }
+        }
+        else
+        {
+            wait(NULL);
+        }
+    }
 }
