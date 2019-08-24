@@ -155,7 +155,7 @@ void exec_ls(char **arg)
         else
         {
             if ((dir_stat->d_name[0] == '.' && flag_a) || dir_stat->d_name[0] != '.')
-                printf("%s  ", dir_stat->d_name);
+                printf("%s   ", dir_stat->d_name);
         }
     }
 

@@ -236,7 +236,7 @@ void execute_commands(char **arg)
         }
         else
         {
-            wait(NULL);
+            waitpid(pid_g, NULL, 0);
         }
     }
 }
