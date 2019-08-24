@@ -7,7 +7,6 @@
 #include <signal.h>
 
 char HOME_DIR[1024];
-int flag_exit = 0;
 
 void set_home_dir()
 {
@@ -30,33 +29,10 @@ void set_home_dir()
         HOME_DIR[strlen(HOME_DIR) - 6] = '\0'; // HARDCODED :: EXECUTABLE NAME IS "/SHELL" SO IT IS REMOVED
 }
 
-void run_child() {
-
-    int pid = fork();
-    if(pid == 0)
-        return;
-    else {
-        int status;
-        waitpid(pid, &status, 0);
-        if(WIFSIGNALED(status)) 
-        {
-            psignal(status, "");
-            run_child();
-        }
-        else
-        {    
-            printf("exiting ..\n");
-            exit(0);
-        }
-    }
-}
-
 int main()
 { // to do : check for possible memory leaks with valgrind
 
     set_home_dir();
-
-    run_child();  // to handle seg faults
 
     interprete_commands();
 }

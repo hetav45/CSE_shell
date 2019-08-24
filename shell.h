@@ -1,7 +1,6 @@
 #define shell_H
 
 extern char HOME_DIR[];
-extern int flag_exit;
 
 void display_prompt();
 void exec_pwd();

@@ -97,14 +97,14 @@ void interprete_commands()
                     pid_g = fork();
                     if (pid_g != 0)
                     {
-                        struct child_list * node = (struct child_list *)calloc(1, sizeof(struct child_list));
-                        if( node == NULL) 
+                        struct child_list *node = (struct child_list *)calloc(1, sizeof(struct child_list));
+                        if (node == NULL)
                         {
                             perror("");
                             exit(1);
                         }
                         node->next = root->next;
-                        if(root->next != NULL)
+                        if (root->next != NULL)
                             root->next->pre = node;
                         root->next = node;
                         node->pre = root;
@@ -155,36 +155,62 @@ void execute_commands(char **arg)
 
     else if (strcmp("ls", arg[0]) == 0)
     {
-        exec_ls(arg);
+        int pid = fork();
+        if (pid == 0)
+        {
+            exec_ls(arg);
+            exit(0);
+        }
+        else
+        {
+            waitpid(pid, NULL, 0);   
+        }
     }
 
     else if (strcmp("history", arg[0]) == 0)
     {
-        exec_history(arg[1]);
+        int pid = fork();
+        if (pid == 0)
+        {
+            exec_history(arg[1]);
+            exit(0);
+        }
+        else
+        {
+            waitpid(pid, NULL, 0);   
+        }
     }
 
     else if (strcmp("pinfo", arg[0]) == 0)
     {
-        char *temp;
-        if (arg[1] == NULL)
+        int pid = fork();
+        if (pid == 0)
         {
-            if ((temp = (char *)malloc(64 * sizeof(char))) < 0)
+            char *temp;
+            if (arg[1] == NULL)
             {
-                perror("");
-                return;
+                if ((temp = (char *)malloc(64 * sizeof(char))) < 0)
+                {
+                    perror("");
+                    return;
+                }
+                snprintf(temp, 63, "%d", getpid());
+                exec_pinfo(temp);
+                free(temp);
             }
-            snprintf(temp, 63, "%d", getpid());
-            exec_pinfo(temp);
-            free(temp);
+            else
+                exec_pinfo(arg[1]);
+            exit(0);
         }
         else
-            exec_pinfo(arg[1]);
+        {
+            waitpid(pid, NULL, 0);   
+        }
     }
 
     else if (strcmp("exit", arg[0]) == 0)
     {
         save_history();
-        flag_exit = 1;
         exit(0);
     }
 
@@ -225,9 +251,9 @@ void bg_handler()
         {
             printf("\nProcess %s with pid %d ", i->name, i->pid);
             fflush(stdout);
-            if(WIFSIGNALED(status)) 
+            if (WIFSIGNALED(status))
                 psignal(status, "");
-            else 
+            else
                 printf("exited normally\n");
 
             // delete node
