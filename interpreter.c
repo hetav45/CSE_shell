@@ -224,6 +224,7 @@ void bg_handler()
         if ((waitpid(i->pid, &status, WNOHANG)) > 0) // WHOHANG is non-blocking
         {
             printf("\nProcess %s with pid %d ", i->name, i->pid);
+            fflush(stdout);
             if(WIFSIGNALED(status)) 
                 psignal(status, "");
             else 

@@ -41,9 +41,13 @@ void run_child() {
         if(WIFSIGNALED(status)) 
         {
             psignal(status, "");
+            run_child();
         }
-        printf("exiting ..\n");
-        exit(0);
+        else
+        {    
+            printf("exiting ..\n");
+            exit(0);
+        }
     }
 }
 
