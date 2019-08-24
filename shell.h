@@ -1,6 +1,7 @@
 #define shell_H
 
 extern char HOME_DIR[];
+extern int flag_exit;
 
 void display_prompt();
 void exec_pwd();
@@ -13,3 +14,4 @@ void insert_history(char *arg);
 void save_history();
 void retrieve_history();
 void interprete_commands();
+void bg_handler();

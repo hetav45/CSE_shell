@@ -11,6 +11,16 @@
 
 int pid_g = -1, flag_bg = 0;
 
+struct child_list
+{
+    int pid;
+    char name[64];
+    struct child_list *next;
+    struct child_list *pre;
+};
+
+struct child_list *root;
+
 void bg_handler();
 void execute_commands(char **arg);
 
@@ -28,7 +38,13 @@ void interprete_commands()
 
     retrieve_history();
 
-    signal(SIGCHLD, bg_handler);
+    root = (struct child_list *)calloc(1, sizeof(struct child_list));
+    root->next = NULL;
+    root->pre = NULL;
+    root->pid = getpid();
+    strcpy(root->name, "./shell");
+
+    display_prompt();
 
     while (1)
     {
@@ -42,7 +58,6 @@ void interprete_commands()
         if (str_in[0] == '\0')
         {
             display_prompt();
-            free(str_in);
             continue;
         }
 
@@ -80,6 +95,23 @@ void interprete_commands()
                 {
                     flag_bg = 1;
                     pid_g = fork();
+                    if (pid_g != 0)
+                    {
+                        struct child_list * node = (struct child_list *)calloc(1, sizeof(struct child_list));
+                        if( node == NULL) 
+                        {
+                            perror("");
+                            exit(1);
+                        }
+                        node->next = root->next;
+                        if(root->next != NULL)
+                            root->next->pre = node;
+                        root->next = node;
+                        node->pre = root;
+
+                        node->pid = pid_g;
+                        strcpy(node->name, argv[0]);
+                    }
                     break;
                 }
                 strcpy(argv[j], str_arg);
@@ -152,12 +184,13 @@ void execute_commands(char **arg)
     else if (strcmp("exit", arg[0]) == 0)
     {
         save_history();
+        flag_exit = 1;
         exit(0);
     }
 
     else
     {
-        if(!flag_bg)
+        if (!flag_bg)
             pid_g = fork();
 
         // exec overwrites the current process, so have to create a child process
@@ -184,38 +217,36 @@ void execute_commands(char **arg)
 
 void bg_handler()
 {
-    int status, pid;
+    int status;
 
-    while ((pid = waitpid(-1, &status, WNOHANG)) <= 0);
-
-    char path[64];
-    char *buf = (char *)calloc(256, sizeof(char));
-
-    sprintf(path, "/proc/%d/cmdline", pid);
-
-    printf("Process ");
-
-    // open /proc/pid/cmdline
-    int fd = open(path, O_RDONLY);
-    if (fd != -1)
+    for (struct child_list *i = root->next; i != NULL; i = i->next)
     {
-        if( read(fd, buf, 255) != -1)
+        if ((waitpid(i->pid, &status, WNOHANG)) > 0) // WHOHANG is non-blocking
         {
-            printf("%s ", buf);
+            printf("\nProcess %s with pid %d ", i->name, i->pid);
+            if(WIFSIGNALED(status)) 
+                psignal(status, "");
+            else 
+                printf("exited normally\n");
+
+            // delete node
+            if (i->pre == NULL)
+            {
+                root = i->next;
+                i->next->pre = NULL;
+                free(i);
+            }
+            else if (i->next == NULL)
+            {
+                i->pre->next = NULL;
+                free(i);
+            }
+            else
+            {
+                i->pre->next = i->next;
+                i->next->pre = i->pre;
+                free(i);
+            }
         }
-        close(fd);
     }
-
-    printf("with pid %d ", pid);
-
-    if (WIFEXITED(status))
-        printf("exited normally\n");
-    else if (WIFSIGNALED(status))
-        printf("terminated by signal %d\n", WTERMSIG(status));
-    else if (WIFSTOPPED(status))
-        printf("stopped by signal %d\n", WSTOPSIG(status));
-    else
-        printf("terminated\n");
-
-    free(buf);
 }
