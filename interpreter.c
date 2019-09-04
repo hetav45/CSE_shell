@@ -9,7 +9,8 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
-int pid_g = -1, flag_bg = 0;
+long unsigned int in_size = 1024;
+int flags[3];  // 0 - ">", 1 - ">>", 2 - "<"
 
 struct child_list
 {
@@ -21,223 +22,206 @@ struct child_list
 
 struct child_list *root;
 
-void bg_handler();
-void execute_commands(char **arg);
+char *init();                          // initize
+void scan(char *str);                  // scans a full line
+void interprete_commands(char *str);   // interprete and executes commands with redirection, piping, and bg processes
+void insert_node(int pid, char *name); // insert a node to the processes linked list
+void delete_node();                    // deletes a node form the processes linked list
+void bg_handler();                     // cheks for completed background processes
+void execute_commands(char **argv, int flags[]);    // executes commands
 
-void interprete_commands()
+void parse_commands() // scans and seperates semicolons
 {
 
-    long unsigned int in_size = 1024;
-    char *str_in;
-    if ((str_in = (char *)malloc(in_size * sizeof(char))) < 0)
+    char *str_in = init();
+
+    while (1)
+    {
+        scan(str_in);
+
+        // semicolon seprator
+        char *temp, *str_com;
+
+        temp = str_in;
+        while ((str_com = strtok_r(temp, ";", &temp)))
+        {
+            interprete_commands(str_com);
+
+            bg_handler();
+            display_prompt();
+        }
+    }
+}
+
+void interprete_commands(char *str)
+{
+    char *temp, *str_arg;
+    flags[0] = flags[1] = flags[2] = 0;  // reset flags
+
+    // prepare argv which stores command arguments
+    char **argv = (char **)malloc(64 * sizeof(char *));
+    if (argv == NULL)
     {
         perror("");
-        return;
+        exit(1);
     }
-    char *str_arg, *str_com, *temp1, *temp2;
 
+    temp = str;
+
+    int i; // i keeps track of number of blocks alloced
+    for (i = 0; (str_arg = strtok_r(temp, " \t", &temp)); i++)
+    {
+        // check for special charcaters
+
+        if (strcmp(str_arg, ">") == 0)
+        {
+            flags[0] = 1;
+        }
+        else if (strcmp(str_arg, ">>") == 0)
+        {
+            flags[1] = 1;
+        }
+        else if (strcmp(str_arg, "<") == 0)
+        {
+            flags[2] = 1;
+        }
+        else if (strcmp(str_arg, "|") == 0)
+        {
+        }
+        else if (strcmp(str_arg, "&") == 0)
+        {
+            argv[i] = NULL;
+
+            int pid = fork();
+
+            if (pid == 0)
+            {
+                execute_commands(argv, flags);
+                exit(0);
+            }
+            // else : only parent will exec this
+
+            insert_node(pid, argv[0]); // insert into jobs list
+
+            // reset argv
+            for (i--; i >= 0; i--)
+                free(argv[i]);
+        }
+        else
+        {
+            argv[i] = (char *)malloc(256 * sizeof(char));
+            if (argv[i] == NULL)
+            {
+                perror("");
+                exit(1);
+            }
+
+            strcpy(argv[i], str_arg);
+        }
+    }
+
+    // normal command
+    if (i > 0)
+    {
+        argv[i] = NULL;
+        execute_commands(argv, flags);
+    }
+
+    for(i--; i>=0; i--) 
+        free(argv[i]);
+}
+
+char *init()
+{
+    display_prompt();
+
+    // get past commands from .history
     retrieve_history();
 
+    // intitilise data structutre for stroring processes
     root = (struct child_list *)calloc(1, sizeof(struct child_list));
+    if (root == NULL)
+    {
+        perror("");
+        exit(1);
+    }
     root->next = NULL;
     root->pre = NULL;
     root->pid = getpid();
     strcpy(root->name, "./shell");
 
-    display_prompt();
-
-    while (1)
+    // allocate memory for input string
+    char *str = (char *)malloc(in_size * sizeof(char));
+    if (str == NULL)
     {
-
-        // do not use scanf !!
-        getline(&str_in, &in_size, stdin);
-        if (strlen(str_in) > 0)
-            str_in[strlen(str_in) - 1] = '\0'; // remove trailing \n
-
-        // in case only enter is pressed
-        if (str_in[0] == '\0')
-        {
-            display_prompt();
-            continue;
-        }
-
-        insert_history(str_in);
-
-        // for commands sperated by ';'
-        temp1 = str_in;
-        while ((str_com = strtok_r(temp1, ";", &temp1)))
-        {
-
-            flag_bg = 0;
-
-            // prepare argv
-            char **argv = (char **)malloc(32 * sizeof(char *));
-            if (argv == NULL)
-            {
-                perror("");
-                free(str_in);
-                exit(1);
-            }
-
-            temp2 = str_com;
-
-            int j; // keeps track of number of blocks alloced
-            for (j = 0; (str_arg = strtok_r(temp2, " \t", &temp2)); j++)
-            {
-                argv[j] = (char *)malloc(256 * sizeof(char));
-                if (argv[j] == NULL)
-                {
-                    perror("");
-                    free(str_in);
-                    exit(1);
-                }
-                if (strcmp(str_arg, "&") == 0)
-                {
-                    flag_bg = 1;
-                    pid_g = fork();
-                    if (pid_g != 0)
-                    {
-                        struct child_list *node = (struct child_list *)calloc(1, sizeof(struct child_list));
-                        if (node == NULL)
-                        {
-                            perror("");
-                            exit(1);
-                        }
-                        node->next = root->next;
-                        if (root->next != NULL)
-                            root->next->pre = node;
-                        root->next = node;
-                        node->pre = root;
-
-                        node->pid = pid_g;
-                        strcpy(node->name, argv[0]);
-                    }
-                    break;
-                }
-                strcpy(argv[j], str_arg);
-            }
-            argv[j] = NULL; // null terminated 2d arr
-
-            if ((flag_bg && pid_g == 0) || !flag_bg)
-                execute_commands(argv);
-
-            for (int i = 0; i < j; i++) // j is the number of blocks alloced
-                free(argv[i]);
-            free(argv);
-
-            if (flag_bg && pid_g == 0)
-                exit(0);
-        }
-
-        display_prompt();
+        perror("");
+        exit(1);
     }
 
-    free(str_in);
+    return str;
 }
 
-void execute_commands(char **arg)
+void scan(char *str)
 {
+    // do not use scanf !!
+    getline(&str, &in_size, stdin);
+    if (strlen(str) > 0)
+        str[strlen(str) - 1] = '\0'; // remove trailing \n
 
-    if (strcmp("pwd", arg[0]) == 0)
+    // if only enter is pressed
+    if (str[0] == '\0')
     {
-        exec_pwd();
+        display_prompt();
+        scan(str);
     }
-
-    else if (strcmp("echo", arg[0]) == 0)
-    {
-        exec_echo(arg);
-    }
-
-    else if (strcmp("cd", arg[0]) == 0)
-    {
-        exec_cd(arg[1]);
-    }
-
-    else if (strcmp("ls", arg[0]) == 0)
-    {
-        int pid = fork();
-        if (pid == 0)
-        {
-            exec_ls(arg);
-            exit(0);
-        }
-        else
-        {
-            waitpid(pid, NULL, 0);   
-        }
-    }
-
-    else if (strcmp("history", arg[0]) == 0)
-    {
-        int pid = fork();
-        if (pid == 0)
-        {
-            exec_history(arg[1]);
-            exit(0);
-        }
-        else
-        {
-            waitpid(pid, NULL, 0);   
-        }
-    }
-
-    else if (strcmp("pinfo", arg[0]) == 0)
-    {
-        int pid = fork();
-        if (pid == 0)
-        {
-            char *temp;
-            if (arg[1] == NULL)
-            {
-                if ((temp = (char *)malloc(64 * sizeof(char))) < 0)
-                {
-                    perror("");
-                    return;
-                }
-                snprintf(temp, 63, "%d", getpid());
-                exec_pinfo(temp);
-                free(temp);
-            }
-            else
-                exec_pinfo(arg[1]);
-            exit(0);
-        }
-        else
-        {
-            waitpid(pid, NULL, 0);   
-        }
-    }
-
-    else if (strcmp("exit", arg[0]) == 0)
-    {
-        save_history();
-        exit(0);
-    }
-
     else
     {
-        if (!flag_bg)
-            pid_g = fork();
+        insert_history(str);
+    }
+}
 
-        // exec overwrites the current process, so have to create a child process
-        if (pid_g == 0)
-        {
-            if (execvp(arg[0], arg) < 0)
-            {
-                if (errno == 2) // for no such file or dir
-                    printf("Command not found : %s\n", arg[0]);
-                else
-                    perror("");
+void insert_node(int pid, char *name)
+{
+    struct child_list *temp = root;
 
-                exit(1); // bc exec will return if failed
+    // temp itself will not be NULL, since process shell.c will be running always
+    while (temp->next != NULL)
+    {
+        temp = temp->next;
+    }
 
-                // no dealloc case anyway the process will terminate
-            }
-        }
-        else
-        {
-            waitpid(pid_g, NULL, 0);
-        }
+    struct child_list *new = (struct child_list *)calloc(1, sizeof(struct child_list));
+    if (new == NULL)
+    {
+        perror("");
+        exit(1);
+    }
+
+    // define the node values
+    new->next = NULL;
+    new->pre = temp;
+    strcpy(new->name, name);
+    temp->next = new;
+}
+
+void delete_node(struct child_list *i)
+{
+    if (i->pre == NULL)
+    {
+        root = i->next;
+        i->next->pre = NULL;
+        free(i);
+    }
+    else if (i->next == NULL)
+    {
+        i->pre->next = NULL;
+        free(i);
+    }
+    else
+    {
+        i->pre->next = i->next;
+        i->next->pre = i->pre;
+        free(i);
     }
 }
 
@@ -257,23 +241,112 @@ void bg_handler()
                 printf("exited normally\n");
 
             // delete node
-            if (i->pre == NULL)
+            delete_node(i);
+        }
+    }
+}
+
+void execute_commands(char **argv, int flags[])
+{
+
+    if (strcmp("pwd", argv[0]) == 0)
+    {
+        exec_pwd();
+    }
+
+    else if (strcmp("echo", argv[0]) == 0)
+    {
+        exec_echo(argv);
+    }
+
+    else if (strcmp("cd", argv[0]) == 0)
+    {
+        exec_cd(argv[1]);
+    }
+
+    else if (strcmp("ls", argv[0]) == 0)
+    {
+        int pid = fork();
+        if (pid == 0)
+        {
+            exec_ls(argv);
+            exit(0);
+        }
+        else
+        {
+            waitpid(pid, NULL, 0);
+        }
+    }
+
+    else if (strcmp("history", argv[0]) == 0)
+    {
+        int pid = fork();
+        if (pid == 0)
+        {
+            exec_history(argv[1]);
+            exit(0);
+        }
+        else
+        {
+            waitpid(pid, NULL, 0);
+        }
+    }
+
+    else if (strcmp("pinfo", argv[0]) == 0)
+    {
+        int pid = fork();
+        if (pid == 0)
+        {
+            char *temp;
+            if (argv[1] == NULL)
             {
-                root = i->next;
-                i->next->pre = NULL;
-                free(i);
-            }
-            else if (i->next == NULL)
-            {
-                i->pre->next = NULL;
-                free(i);
+                if ((temp = (char *)malloc(64 * sizeof(char))) < 0)
+                {
+                    perror("");
+                    return;
+                }
+                snprintf(temp, 63, "%d", getpid());
+                exec_pinfo(temp);
+                free(temp);
             }
             else
+                exec_pinfo(argv[1]);
+            exit(0);
+        }
+        else
+        {
+            waitpid(pid, NULL, 0);
+        }
+    }
+
+    else if (strcmp("quit", argv[0]) == 0)
+    {
+        save_history();
+        exit(0);
+    }
+
+    else
+    {
+        int pid = fork();
+
+        // exec overwrites the current process, so have to create a child process
+        if (pid == 0)
+        {
+            if (execvp(argv[0], argv) < 0)
             {
-                i->pre->next = i->next;
-                i->next->pre = i->pre;
-                free(i);
+                if (errno == 2) // for no such file or dir
+                    printf("Command not found : %s\n", argv[0]);
+                else
+                    perror("");
+
+                exit(1); // bc exec will return if failed
+
+                // no dealloc case anyway the process will terminate
             }
+        }
+        else
+        {
+            waitpid(pid, NULL, 0);
         }
     }
 }

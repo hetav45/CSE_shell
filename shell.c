@@ -33,6 +33,6 @@ int main()
 { // to do : check for possible memory leaks with valgrind
 
     set_home_dir();
-
-    interprete_commands();
+    
+    parse_commands();
 }

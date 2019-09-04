@@ -12,5 +12,6 @@ void exec_history(char *arg);
 void insert_history(char *arg);
 void save_history();
 void retrieve_history();
-void interprete_commands();
+void interprete_commands(char * str);
+void parse_commands();
 void bg_handler();

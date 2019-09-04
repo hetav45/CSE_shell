@@ -28,8 +28,6 @@ int check_rel_path(char *ab_path)
 void display_prompt()
 { // default values will be displayed upon error
 
-    bg_handler();
-    
     // get user name
     char u_name[128] = "user_name\0"; // default
     for (int i = 10; i < 128; i++)
