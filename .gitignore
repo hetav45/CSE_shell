@@ -1,6 +1,6 @@
 *.o
 temp.c
 a.out
-Tutorial2
+Tutorial*
 .history
 shell

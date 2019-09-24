@@ -22,8 +22,26 @@ void exec_echo(char **arg)
     for (int i = 0; i < strlen(str); i++)
     { // to do : what if echo \0advasdf ?
 
+        // to print env var
+        if(str[i] == '$')
+        {
+            i++;
+
+            // get name of env var
+            char var[32] = "\0";
+
+            for(int j= 0; str[i] != ' ' && str[i] != '\t' && str[i] != '\0' && str[i] != '\n'; j++, i++)
+            {
+                var[j] = str[i];
+            }
+            // str[i] is not yet traversed
+            i--;
+
+            printf("%s", getenv(var));
+        }
+
         // characters inside single inverted comma; printed as is
-        if (flag_s_comma)
+        else if (flag_s_comma)
         {
             if (str[i] == '\'')
                 flag_s_comma = 0;
