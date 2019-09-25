@@ -30,6 +30,16 @@ void ctrlC_handler()
     return;
 }
 
+void soft_kill_handler()
+{
+    return;
+}
+
+void ctrlC_core_dumped_handler()
+{
+    return;
+}
+
 void ctrlZ_handler()
 {
     return;
@@ -273,9 +283,11 @@ void interprete_commands(char *str)
 
 char *init()
 {
-    signal(SIGINT, ctrlC_handler);  
+    signal(SIGINT, ctrlC_handler);
+    signal(SIGQUIT, ctrlC_core_dumped_handler);  
     signal(SIGTSTP, ctrlZ_handler);
     signal(SIGTTOU, bg_to_fg_handler);
+    signal(SIGTERM, soft_kill_handler);
 
     display_prompt();
 
@@ -503,7 +515,7 @@ void execute_commands(char **argv)
                     perror("");
                     return;
                 }
-                snprintf(temp, 63, "%d", getpid());
+                snprintf(temp, 63, "%d", getppid());
                 exec_pinfo(temp);
                 free(temp);
             }
