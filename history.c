@@ -39,7 +39,6 @@ void exec_history(char *arg)
 
 void insert_history(char *arg)
 {
-
     // same commands are not inserted again
     if (strcmp(record[(end_ptr - 1) % r_sz], arg) == 0)
         return;
@@ -115,9 +114,20 @@ void retrieve_history()
 
     for (end_ptr = 0; (temp2 = strtok_r(temp1, "\n", &temp1)) != NULL && end_ptr < r_sz; end_ptr++)
     {
-
         strncpy(record[end_ptr], temp2, 1023);
     }
 
     close(fd);
+}
+
+void get_history(int n, char *str)
+{
+    if((end_ptr - start_ptr + r_sz)%r_sz >=n ) 
+    {
+        strcpy(str, record[(end_ptr-n+r_sz)%r_sz]);
+    }
+    else 
+    {
+        str[0] = '\0';
+    }
 }

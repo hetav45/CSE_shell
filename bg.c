@@ -1,17 +1,18 @@
 #include "shell.h"
 #include <stdio.h>
 
-void exec_bg(int pid) 
+void exec_bg(int jobid)
 {
-    for (struct child_list *i = root->next; i != NULL; i = i->next)
+    int j = 1;
+    for (struct child_list *i = root->next; i != NULL; i = i->next, j++)
     {
-        if(i->pid == pid) 
+        if (jobid == j)
         {
-            exec_kjob(pid, 18);
+            exec_kjob(jobid, 18);
             i->status = 1;
             return;
         }
     }
 
-    fprintf(stderr, "No such process with pid : %d", pid);
+    fprintf(stderr, "No such process with job number : %d\n", jobid);
 }

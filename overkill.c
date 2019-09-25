@@ -3,8 +3,9 @@
 
 void exec_overkill() 
 {
-    for (struct child_list *i = root->next; i != NULL; i = i->next)
+    int j = 1;
+    for (struct child_list *i = root->next; i != NULL; i = i->next, j++)
     {
-        exec_kjob(i->pid, 9);
+        exec_kjob(j, 9);
     }
 }

@@ -15,15 +15,36 @@ int flag_bg = 0;
 struct child_list *root;
 struct child_list fg;
 
-char *init();                                 // initize
-void scan(char *str);                         // scans a full line
-void interprete_commands(char *str);          // interprete and executes commands with redirection, piping, and bg processes
-void dealloc(char **argv, int i);             // dealloc memory
-void restore_io(int flags[], int saved_fd[]); // restore fd of std_in/out
-void insert_node(int pid, char *name);        // insert a node to the processes linked list
-void delete_node(struct child_list *i);       // deletes a node form the processes linked list
-void bg_handler();                            // cheks for completed background processes
-void execute_commands(char **argv);           // executes commands
+char *init();                                      // initize
+void scan(char *str);                              // scans a full line
+void interprete_commands(char *str);               // interprete and executes commands with redirection, piping, and bg processes
+void dealloc(char **argv, int i);                  // dealloc memory
+void restore_io(int flags[], int saved_fd[]);      // restore fd of std_in/out
+void insert_node(int pid, char *name, int signal); // insert a node to the processes linked list
+void delete_node(struct child_list *i);            // deletes a node form the processes linked list
+void bg_handler();                                 // cheks for completed background processes
+void execute_commands(char **argv);                // executes commands
+
+void ctrlC_handler()
+{
+    return;
+}
+
+void ctrlZ_handler()
+{
+    return;
+    if (fg.pid != -1)
+        insert_node(fg.pid, fg.name, 0);
+    fg.pid = -1;
+
+    return;
+}
+
+void bg_to_fg_handler()
+{
+    tcsetpgrp(STDIN_FILENO, getpid());
+    return;
+}
 
 void parse_commands() // scans and seperates semicolons
 {
@@ -216,7 +237,7 @@ void interprete_commands(char *str)
             // else : only parent will exec this
             else
             {
-                insert_node(pid, argv[0]);
+                insert_node(pid, argv[0], 1);
                 restore_io(flags, saved_fd); // restore std_in/out if needed
 
                 // reset argv
@@ -252,6 +273,10 @@ void interprete_commands(char *str)
 
 char *init()
 {
+    signal(SIGINT, ctrlC_handler);  
+    signal(SIGTSTP, ctrlZ_handler);
+    signal(SIGTTOU, bg_to_fg_handler);
+
     display_prompt();
 
     // get past commands from .history
@@ -290,6 +315,24 @@ void scan(char *str)
     if (strlen(str) > 0)
         str[strlen(str) - 1] = '\0'; // remove trailing \n
 
+    char up[4] = {'\033', '[', 'A', '\0'};
+
+    // check for 'up'
+    if (strncmp(str, up, 3) == 0)
+    {
+        int cnt = 1;
+        for (; cnt < 10 && strncmp(str + 3 * cnt, up, 3) == 0; cnt++)
+            ;
+
+        get_history(cnt, str);
+        if (str[0] != '\0')
+        {
+            bg_handler();
+            display_prompt();
+            printf("%s\n", str);
+        }
+    }
+
     // if only enter is pressed
     if (str[0] == '\0')
     {
@@ -303,7 +346,7 @@ void scan(char *str)
     }
 }
 
-void insert_node(int pid, char *name)
+void insert_node(int pid, char *name, int status)
 {
     struct child_list *temp = root;
 
@@ -322,7 +365,7 @@ void insert_node(int pid, char *name)
 
     // define the node values
     new->pid = pid;
-    new->status = 1;
+    new->status = status;
     new->next = NULL;
     new->pre = temp;
     strcpy(new->name, name);
@@ -401,6 +444,9 @@ void bg_handler()
 
 void execute_commands(char **argv)
 {
+    if (argv[0] == NULL)
+        return;
+
     if (strcmp("pwd", argv[0]) == 0)
     {
         exec_pwd();
@@ -452,7 +498,7 @@ void execute_commands(char **argv)
             char *temp;
             if (argv[1] == NULL)
             {
-                if ((temp = (char *)malloc(64 * sizeof(char))) < 0)
+                if ((temp = (char *)malloc(64 * sizeof(char))) == NULL)
                 {
                     perror("");
                     return;
@@ -486,8 +532,20 @@ void execute_commands(char **argv)
     {
 
         int arg1 = -1, arg2 = -1;
-        if(argv[1] != NULL) arg1 = atoi(argv[1]);
-        if(argv[2] != NULL) arg2 = atoi(argv[2]); 
+        if (argv[1] != NULL)
+            arg1 = atoi(argv[1]);
+        else
+        {
+            fprintf(stderr, "invalid number of arguments\nusage : 'kjob [job_id] [signal]'\n");
+            return;
+        }
+        if (argv[2] != NULL)
+            arg2 = atoi(argv[2]);
+        else
+        {
+            fprintf(stderr, "invalid number of arguments\nusage : 'kjob [job_id] [signal]'\n");
+            return;
+        }
 
         int pid = fork();
         if (pid == 0)
@@ -513,18 +571,35 @@ void execute_commands(char **argv)
 
     else if (strcmp("fg", argv[0]) == 0)
     {
-        int pid = -1;
-        if(argv[1] != NULL) pid = atoi(argv[1]);
+        int jobid = -1;
+        if (argv[1] != NULL)
+            jobid = atoi(argv[1]);
+        else
+        {
+            fprintf(stderr, "no arguments given for fg\n");
+            return;
+        }
 
-        exec_fg(pid);
+        exec_fg(jobid);
     }
 
     else if (strcmp("bg", argv[0]) == 0)
     {
-        int pid = -1;
-        if(argv[1] != NULL) pid = atoi(argv[1]);
+        int jobid = -1;
+        if (argv[1] != NULL)
+            jobid = atoi(argv[1]);
+        else
+        {
+            fprintf(stderr, "no arguments given for bg\n");
+            return;
+        }
 
-        exec_bg(pid);
+        exec_bg(jobid);
+    }
+
+    else if (strcmp("cronjob", argv[0]) == 0)
+    {
+        exec_cronjob(argv);
     }
 
     else if (strcmp("quit", argv[0]) == 0)
@@ -537,6 +612,7 @@ void execute_commands(char **argv)
     {
         if (flag_bg)
         {
+            setpgid(0, 0);
             if (execvp(argv[0], argv) < 0)
             {
                 if (errno == 2) // for no such file or dir
@@ -556,6 +632,8 @@ void execute_commands(char **argv)
             // exec overwrites the current process, so have to create a child process
             if (pid == 0)
             {
+                setpgid(0, 0);
+                tcsetpgrp(STDIN_FILENO, getpid());
                 if (execvp(argv[0], argv) < 0)
                 {
                     if (errno == 2) // for no such file or dir
@@ -574,9 +652,16 @@ void execute_commands(char **argv)
                 strcpy(fg.name, argv[0]);
                 fg.status = 1;
 
-                waitpid(pid, NULL, 0);
+                int status;
+                waitpid(pid, &status, WUNTRACED);
+                if (WIFSTOPPED(status))
+                {
+                    if (fg.pid != -1)
+                        insert_node(fg.pid, fg.name, 0);
+                    fg.pid = -1;
+                }
 
-                fg.pid = -1;
+                tcsetpgrp(STDIN_FILENO, getpid());
             }
         }
     }

@@ -19,7 +19,7 @@ void exec_echo(char **arg)
 
     int flag_s_comma = 0, flag_d_comma = 0, flag_b_slash = 0;
 
-    for (int i = 0; i < strlen(str); i++)
+    for (int i = 0; i < (int)strlen(str); i++)
     { // to do : what if echo \0advasdf ?
 
         // to print env var
