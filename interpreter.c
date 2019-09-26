@@ -284,7 +284,7 @@ void interprete_commands(char *str)
 char *init()
 {
     signal(SIGINT, ctrlC_handler);
-    signal(SIGQUIT, ctrlC_core_dumped_handler);  
+    signal(SIGQUIT, ctrlC_core_dumped_handler);
     signal(SIGTSTP, ctrlZ_handler);
     signal(SIGTTOU, bg_to_fg_handler);
     signal(SIGTERM, soft_kill_handler);
@@ -616,6 +616,7 @@ void execute_commands(char **argv)
 
     else if (strcmp("quit", argv[0]) == 0)
     {
+        exec_overkill();
         save_history();
         exit(0);
     }

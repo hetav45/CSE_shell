@@ -1,6 +1,7 @@
 #define shell_H
 
 extern char HOME_DIR[];
+extern int flag_bg;
 struct child_list
 {
     int pid;

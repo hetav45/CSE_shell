@@ -41,35 +41,7 @@ void exec_fg(int jobid)
     int status;
     waitpid(pid, &status, WUNTRACED);
 
-    if (WIFSIGNALED(status))
-    {
-        printf("\nProcess %s with pid %d ", fg.name, fg.pid);
-        fflush(stdout);
-        psignal(status, "");
-
-        for (struct child_list *i = root->next; i != NULL; i = i->next)
-        {
-            if(i->pid == pid) {
-                delete_node(i);
-                break;
-            }
-        }
-    }
-    else if (WIFEXITED(status))
-    {
-        printf("\nProcess %s with pid %d ", fg.name, fg.pid);
-        fflush(stdout);
-        printf("exited normally\n");
-
-        for (struct child_list *i = root->next; i != NULL; i = i->next)
-        {
-            if(i->pid == pid) {
-                delete_node(i);
-                break;
-            }
-        }
-    }
-    else if (WIFSTOPPED(status)) 
+    if (WIFSTOPPED(status)) 
     {
         if(fg.pid != -1)
             insert_node(fg.pid, fg.name, 0);
