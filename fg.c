@@ -24,7 +24,7 @@ void exec_fg(int jobid)
     }
 
     tcsetpgrp(STDIN_FILENO, pid);
-    exec_kjob(jobid, 18);
+    killpg(getpgid(pid), 18);
 
     for (struct child_list *i = root->next; i != NULL; i = i->next)
     {

@@ -206,9 +206,6 @@ void interprete_commands(char *str)
             saved_fd[1] = dup(1);
             dup2(pipefd[1], 1);
 
-            // close reading end
-            //close(pipefd[0]);
-
             // execute command before the pipe
             argv[i] = NULL;
             execute_commands(argv);

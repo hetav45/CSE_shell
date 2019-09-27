@@ -1,5 +1,7 @@
 #include "shell.h"
 #include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
 
 void exec_bg(int jobid)
 {
@@ -8,7 +10,7 @@ void exec_bg(int jobid)
     {
         if (jobid == j)
         {
-            exec_kjob(jobid, 18);
+            killpg(getpgid(i->pid), 18);
             i->status = 1;
             return;
         }
